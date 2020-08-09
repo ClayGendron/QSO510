@@ -9,6 +9,7 @@ library(corrplot)
 #pg 685 in text for data definitions
 #added LIFEVAL to csv to show life time donations by donor
 pva <- data.frame(read_csv(here::here('Data/qso_510_data_set_pva.csv')))
+colnames(pva)
 
 #descriptive statistics
 gift_hist <- hist(pva$GIFTAMNT,
@@ -45,4 +46,69 @@ n_gift_ltv <- ggplot(data = pva, aes(x = NGIFTALL, y = LIFEVAL)) + geom_point() 
 n_gift_ltv
 
 n_gift_ltv <- plot(pva$NGIFTALL, pva$LIFEVAL)
+
+#model creation 
+pva_t <- 
+  pva %>% 
+  dplyr::select(HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, MAXADATE, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE, MAXRAMNT, MAXRDATE, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, GIFTAMNT, LIFEVAL) %>% 
+  initial_split()
+
+#train and test
+train <- training(pva_t) # training dataset
+test <- testing(pva_t) # testing dataset
+
+#recipes
+mod_rec_gift_amt <- recipe(GIFTAMNT~ ., data = train) %>% 
+  step_center(
+    HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, MAXADATE, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE, MAXRAMNT, MAXRDATE, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, LIFEVAL
+  ) %>%
+  step_scale(
+    HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, MAXADATE, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE, MAXRAMNT, MAXRDATE, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, LIFEVAL
+  )
+
+# training model
+# all variables
+gift_amt_lm_vars <- qc( HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, MAXADATE, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE, MAXRAMNT, MAXRDATE, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, LIFEVAL
+)
+gift_amt_function_var <- "GIFTAMNT"
+glm_formula <- as.formula(paste(sprintf("%s ~", gift_amt_function_var), paste(gift_amt_lm_vars [!gift_amt_lm_vars  %in% "y"], collapse = " + ")))
+
+# all variables function
+yeild_glm_mod <- glm(
+  formula = glm_formula
+  , data = train_df_m
+  , family = "binomial"
+)
+
+
+# quick summary
+summary(yeild_glm_mod)
+
+# significant variables
+glm_vars_fit <- qc( CommuterFlag,
+                    CampaignCount,
+                    Opens,
+                    Clicks,
+                    OptOut,
+                    AcceptedRelativeDateDiff,
+                    UnmetNeed,
+                    Attended_Event,
+                    Event_Count,
+                    TotalAwardAmount,
+                    InstitutionalNeedBasedGrantsFlag,
+                    LegacyFlag
+)
+
+
+# significant variables
+glm_formula_fit <- as.formula(paste(sprintf("%s ~", glm_function_var), paste(glm_vars_fit[!glm_vars_fit %in% "y"], collapse = " + ")))
+
+# significant variables function
+yeild_glm_mod_fit <- glm(
+  formula = glm_formula_fit
+  , data = train_df_m
+  , family = "binomial"
+)
+
+
 
