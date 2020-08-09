@@ -4,6 +4,7 @@ library(tidymodels)
 library(tidyverse)
 library(stats)
 library(corrplot)
+library(wrapr)
 
 #load data
 #pg 685 in text for data definitions
