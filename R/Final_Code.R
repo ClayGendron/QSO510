@@ -21,8 +21,8 @@ gift_hist <- hist(pva$GIFTAMNT,
                   freq = TRUE,
                   breaks = c(0,10,20,30,40,50,100,200))
 
-gift_life_hist <- hist(pva$LIFEVAL,
-                  main = 'Frequency of Life Time Value',
+gift_life_hist <- hist(pva$TOTALGIFTAMNT,
+                  main = 'Frequency of Total',
                   xlab = 'Total of all Donations',
                   ylab = 'Frequency',
                   col = 'limegreen',
@@ -41,17 +41,17 @@ gift_corrplot <- corrplot(cor_pva, method = 'circle')
 
 avg_gift_n_gift <- ggplot(data = pva, aes(x = NGIFTALL, y = AVGGIFT)) + geom_point() + geom_smooth(method=lm)
 avg_gift_n_gift
-avg_gift_ltv <- ggplot(data = pva, aes(x = AVGGIFT, y = LIFEVAL)) + geom_point() + geom_smooth(method=lm)
-avg_gift_ltv
-n_gift_ltv <- ggplot(data = pva, aes(x = NGIFTALL, y = LIFEVAL)) + geom_point() + geom_smooth(method=lm)
-n_gift_ltv
+avg_gift_t_gift <- ggplot(data = pva, aes(x = AVGGIFT, y = TOTALGIFTAMNT)) + geom_point() + geom_smooth(method=lm)
+avg_gift_t_gift
+n_gift_t_gift <- ggplot(data = pva, aes(x = NGIFTALL, y = TOTALGIFTAMNT)) + geom_point() + geom_smooth(method=lm)
+n_gift_t_gift
 
-n_gift_ltv <- plot(pva$NGIFTALL, pva$LIFEVAL)
+n_gift_ltv <- plot(pva$NGIFTALL, pva$TOTALGIFTAMNT)
 
 #model creation 
 pva_t <- 
   pva %>% 
-  dplyr::select(HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, MAXADATE, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE, MAXRAMNT, MAXRDATE, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, GIFTAMNT, LIFEVAL) %>% 
+  dplyr::select(HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, MAXADATE, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE, MAXRAMNT, MAXRDATE, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, GIFTAMNT, TOTALGIFTAMNT) %>% 
   initial_split()
 
 #train and test
@@ -69,47 +69,16 @@ mod_rec_gift_amt <- recipe(GIFTAMNT~ ., data = train) %>%
 
 # training model
 # all variables
-gift_amt_lm_vars <- qc( HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, MAXADATE, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE, MAXRAMNT, MAXRDATE, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, LIFEVAL
-)
-gift_amt_function_var <- "GIFTAMNT"
+gift_amt_lm_vars <- qc(HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, MAXADATE, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE, MAXRAMNT, MAXRDATE, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE)
+gift_amt_function_var <- "TOTALGIFTAMNT"
 glm_formula <- as.formula(paste(sprintf("%s ~", gift_amt_function_var), paste(gift_amt_lm_vars [!gift_amt_lm_vars  %in% "y"], collapse = " + ")))
 
 # all variables function
-yeild_glm_mod <- glm(
+gift_amount_lm <- lm(
   formula = glm_formula
-  , data = train_df_m
-  , family = "binomial"
+  , data = train
 )
 
 
 # quick summary
-summary(yeild_glm_mod)
-
-# significant variables
-glm_vars_fit <- qc( CommuterFlag,
-                    CampaignCount,
-                    Opens,
-                    Clicks,
-                    OptOut,
-                    AcceptedRelativeDateDiff,
-                    UnmetNeed,
-                    Attended_Event,
-                    Event_Count,
-                    TotalAwardAmount,
-                    InstitutionalNeedBasedGrantsFlag,
-                    LegacyFlag
-)
-
-
-# significant variables
-glm_formula_fit <- as.formula(paste(sprintf("%s ~", glm_function_var), paste(glm_vars_fit[!glm_vars_fit %in% "y"], collapse = " + ")))
-
-# significant variables function
-yeild_glm_mod_fit <- glm(
-  formula = glm_formula_fit
-  , data = train_df_m
-  , family = "binomial"
-)
-
-
-
+summary(gift_amount_lm)
