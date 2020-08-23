@@ -82,3 +82,5 @@ gift_amount_lm <- lm(
 
 # quick summary
 summary(gift_amount_lm)
+summary(pva$GIFTAMNT)
+sd(pva$GIFTAMNT)
