@@ -51,7 +51,7 @@ n_gift_ltv <- plot(pva$NGIFTALL, pva$TOTALGIFTAMNT)
 #model creation 
 pva_t <- 
   pva %>% 
-  dplyr::select(HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, MAXADATE, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE, MAXRAMNT, MAXRDATE, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, GIFTAMNT, TOTALGIFTAMNT) %>% 
+  dplyr::select(HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE_T, MAXRAMNT, MAXRDATE_T, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, GIFTAMNT, TOTALGIFTAMNT) %>% 
   initial_split()
 
 #train and test
@@ -61,26 +61,66 @@ test <- testing(pva_t) # testing dataset
 #recipes
 mod_rec_gift_amt <- recipe(GIFTAMNT~ ., data = train) %>% 
   step_center(
-    HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, MAXADATE, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE, MAXRAMNT, MAXRDATE, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, LIFEVAL
+    HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE_T, MAXRAMNT, MAXRDATE_T, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE
   ) %>%
   step_scale(
-    HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, MAXADATE, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE, MAXRAMNT, MAXRDATE, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, LIFEVAL
+    HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE_T, MAXRAMNT, MAXRDATE_T, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE
   )
 
 # training model
 # all variables
-gift_amt_lm_vars <- qc(HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, MAXADATE, NUMPROM, CARDPM12, NUMPRM12, NGIFTALL, CARDGIFT, MINRAMNT, MINRDATE, MAXRAMNT, MAXRDATE, LASTGIFT, AVGGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE)
-gift_amt_function_var <- "TOTALGIFTAMNT"
+gift_amt_lm_vars <- qc(HOMEOWNER, STATEGOV, NGIFTALL, LASTGIFT, AVGGIFT, CLUSTER2)
+gift_amt_function_var <- "GIFTAMNT"
 glm_formula <- as.formula(paste(sprintf("%s ~", gift_amt_function_var), paste(gift_amt_lm_vars [!gift_amt_lm_vars  %in% "y"], collapse = " + ")))
+
+#bake data
+train_prep <- prep(mod_rec_gift_amt, training = train)
+train_data <- bake(train_prep, train)
 
 # all variables function
 gift_amount_lm <- lm(
   formula = glm_formula
-  , data = train
+  , data = train_data
 )
 
 
 # quick summary
 summary(gift_amount_lm)
-summary(pva$GIFTAMNT)
-sd(pva$GIFTAMNT)
+
+# test model
+test_data <- bake(train_prep, test)
+
+test_p <- predict(gift_amount_lm, test_data)
+test_predict <- cbind(test_data, test_p)
+test_sse <- (test_predict$GIFTAMNT - test_predict$test_p)^2
+test_sst <- (test_predict$GIFTAMNT - mean(test_predict$GIFTAMNT))^2
+test_r2 <- 1 - (sum(test_sse)/sum(test_sst))
+test_r2
+
+
+# k means model
+
+#recipe
+
+mod_rec_k_means <- recipe(TOTALGIFTAMNT ~ ., data = pva) %>% 
+  step_center(
+    HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, NUMPROM, CARDPM12, NUMPRM12, MINRAMNT, MINRDATE_T, MAXRAMNT, MAXRDATE_T, LASTGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, TOTALGIFTAMNT
+  ) %>%
+  step_scale(
+    HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, NUMPROM, CARDPM12, NUMPRM12, MINRAMNT, MINRDATE_T, MAXRAMNT, MAXRDATE_T, LASTGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, TOTALGIFTAMNT
+  )
+
+k_prep <- prep(mod_rec_k_means, training = pva)
+k_table <- bake(k_prep, pva)
+k_table <- k_table %>% dplyr::select(HOMEOWNER, HIT, MALEVET, VIETVETS, WWIIVETS, LOCALGOV, STATEGOV, FEDGOV, CARDPROM, NUMPROM, CARDPM12, NUMPRM12, MINRAMNT, MINRDATE_T, MAXRAMNT, MAXRDATE_T, LASTGIFT, CONTROLN, HPHONE_D, CLUSTER2, CHILDREN, AGE, TOTALGIFTAMNT)
+colnames(k_table)
+
+# model creation
+
+k_mod <- kmeans(k_table,centers = 4, nstart = 100)
+k_mod
+
+# build table
+
+pva_clusters <- cbind(pva, k_mod$cluster)
+
